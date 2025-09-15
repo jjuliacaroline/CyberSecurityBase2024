@@ -40,37 +40,50 @@ class ResultsView(generic.DetailView):
     #return get_object_or_404(Question, pk=q_id)
 
 def vote(request, question_id):
+    q = None
+    #FLAW-1-Vulnerability OWASP - A03:2021 – Injection
+    try:
+        with connection.cursor() as c:
+            c.execute(f"SELECT * FROM polls_question WHERE id = {question_id}")
+            q = c.fetchone()
+    except Exception:
+        q = None
 
-    #Vulnerability OWASP - A03:2021 – Injection
-    with connection.cursor() as c:
-        c.execute(f"SELECT * FROM polls_question WHERE id = {question_id}")
-        q = c.fetchone()
-
-    #Fix A03:2021
+    #FLAW-1-FIX OWASP - A03:2021 – Injection
     #with connection.cursor() as c:
-    #    c.execute("SELECT * FROM polls_question WHERE id = %s", (question_id,))
+    #    c.execute("SELECT * FROM polls_question WHERE id = %s", [question_id,])
+    #    q = c.fetchone()
 
+    if not q:
+        return render(request, 'polls/detail.html', {
+            'err_msg': "Question not found",
+            'question': None,
+        })
     question = Question(id=q[0], question_text=q[1], pub_date=q[2])
 
-    try:
-        selected_choice = question.choice_set.get(pk=request.POST['choice'])
-        voter_name = request.POST.get('voter_name', 'anonymous')
-        #A02:2021 – Cryptographic Failures - weak algorithm
-        voter_name_hashed = hashlib.md5(voter_name.encode()).hexdigest()
-        #Fix A02: 
-        #voter_name_hashed = hashlib.sha256(voter_name.encode()).hexdigest()
-        selected_choice.voter_name_hashed = voter_name_hashed
-    except (KeyError, Choice.DoesNotExist):
-        return render(request, 'polls/detail.html', {
-            'question': question,
-            'error_message': "You didn't select a choice.",
-        })
-    else:
-        selected_choice.votes += 1
-        selected_choice.save()
+    if request.method == 'POST':
+        try:
+            selected_choice = question.choice_set.get(pk=request.POST['choice'])
+            voter_name = request.POST.get('voter_name', 'anonymous')
+            #A02:2021 – Cryptographic Failures - weak algorithm
+            voter_name_hashed = hashlib.md5(voter_name.encode()).hexdigest()
+            #Fix A02: 
+            #voter_name_hashed = hashlib.sha256(voter_name.encode()).hexdigest()
+            selected_choice.voter_name_hashed = voter_name_hashed
+        except (KeyError, Choice.DoesNotExist):
+            return render(request, 'polls/detail.html', {
+                'question': question,
+                'error_message': "You didn't select a choice.",
+            })
+        else:
+            selected_choice.votes += 1
+            selected_choice.save()
 
-        return redirect('polls:verify_voter', choice_id=selected_choice.id, voter_name=voter_name_hashed)
-
+            return HttpResponseRedirect(f"/polls/verify-voter/?choice_id={selected_choice.id}&voter_name={voter_name_hashed}")
+        
+    return render(request, 'polls/detail.html', {
+        'question': question
+    })
 
 def verify_voter(request):
     verification_result = None

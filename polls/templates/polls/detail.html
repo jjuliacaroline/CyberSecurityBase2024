@@ -1,7 +1,10 @@
 <h1>{{ question.question_text }}</h1>
 
-{% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+{% if error_message %}
+<p><strong>{{ error_message }}</strong></p>
+{% endif %}
 
+{% if question %}
 <form action="{% url 'polls:verify_voter' %}" method="post">
 {% csrf_token %}
 {% for choice in question.choice_set.all %}
@@ -11,6 +14,8 @@
 
 <label for="voter_name">Voter name:</label>
 <input type="text" name="voter_name" id="voter_name"><br><br>
-
 <input type="submit" value="Vote">
 </form>
+{% else %}
+<p>{{ err_msg }}</p>
+{% endif %}
