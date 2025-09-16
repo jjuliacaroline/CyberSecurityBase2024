@@ -32,12 +32,14 @@ class ResultsView(generic.DetailView):
     model = Question
     template_name = 'polls/results.html'
 
-    #Vulnerability OWASP - A01:2021-Broken Access Control 
-    def get_results(self):
+    #FLAW 2- Vulnerability OWASP - A01:2021-Broken Access Control
+    def get_object(self):
         q_id = self.kwargs['pk']
-        return Question.objects.filter(id=q_id)
-    #Fix A01:2021
-    #return get_object_or_404(Question, pk=q_id)
+        return Question.objects.get(id=q_id)
+    #FLAW-2-Fix A01:2021 -Broken Access Control
+    #def get_object(self):
+    #    q_id = self.kwargs['pk']
+    #    return get_object_or_404(Question, id=q_id, pub_date__lte=timezone.now())
 
 def vote(request, question_id):
     q = None
