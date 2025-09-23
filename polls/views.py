@@ -1,5 +1,6 @@
 import hashlib
 import requests
+from urllib.parse import urlparse
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
@@ -9,6 +10,8 @@ from django.db import connection
 from .models import Choice, Question
 from .forms import VerifyForm
 
+
+TRUSTED_DOMAINS = ['127.0.0.1', 'localhost']
 
 class IndexView(generic.ListView):
     template_name = 'polls/index.html'
@@ -88,70 +91,66 @@ def vote(request, question_id):
     })
 
 def verify_voter(request):
+    print(f"DEBUG: Method={request.method}, POST_DATA={request.POST}")
     verification_result = None
     choice = None
-    voter_name_hashed = None
-
-    choice_id = request.GET.get('choice_id')
+    choice_id = request.GET.get('choice_id') or request.POST.get('choice_id')
     voter_name_hashed = request.GET.get('voter_name')
+
+    if choice_id and choice_id != 'None' and choice_id.strip():
+        choice = get_object_or_404(Choice, pk=choice_id)
+    else:
+        choice_id = None
 
     if choice_id:
         choice = get_object_or_404(Choice, pk=choice_id)
 
     if request.method == 'POST':
         form = VerifyForm(request.POST)
-
         if form.is_valid():
-            choice_id = form.cleaned_data["id"]
             verification_url = form.cleaned_data["verify_url"]
 
             if not verification_url.startswith(('http://', 'https://')):
                 verification_url = 'http://' + verification_url
 
-            choice = get_object_or_404(Choice, id=choice_id)
+            #FLAW-4-FIX OWASP - A10:2021 – Server-Side Request Forgery (SSRF)
+            parsed_url = urlparse(verification_url)
+            domain = parsed_url.netloc.split(':')[0].lower()
 
-            if request.method == 'POST':
-                form = VerifyForm(request.POST)
+            if domain not in TRUSTED_DOMAINS:
+                verification_result = "Untrusted domain. Verification failed."
+            else:
+                print(f"DEBUG: Domain '{domain}' is trusted, attempting request...")
+                try:
+                    print(f"DEBUG: About to make request to: {verification_url}")
+                    response = requests.get(verification_url, timeout=5)
+                    print(f"DEBUGGING URL: {verification_url}, STATUS: {response.status_code}, RESPONSE TEXT: '{response.text}'")
 
-                if form.is_valid():
-                    choice_id = form.cleaned_data["id"]
-                    verification_url = form.cleaned_data["verify_url"]
+                    verify_result = response.text
 
-                    try:
-                        #A10:2021 – Server-Side Request Forgery (SSRF)
-                        response = requests.get(verification_url)
-                        #A10:2021 Fix 
-                        # from urllib.parse import urlparse
-
-                        # TRUSTED_DOMAINS = ['trusteddomain', 'anothertrusteddomain']
-
-                        # parsed_url = urlparse(verification_url)
-                        # if parsed_url.netloc not in TRUSTED_DOMAINS:
-                        #     verification_result = "Invalid domain."
-                        # else:
-                        #     response = requests.get(verification_url)
-                        
-                        verify_result = response.text
-
-                        if "Verified" in verify_result:
+                    if "verified" in verify_result.strip().lower():
+                        if choice:
                             choice.votes += 1
                             choice.save()
-
-                        verification_result = "Verification succeeded."
-
-                    except requests.exceptions.RequestException:
-                        verification_result = "Verification failed. Proceeding to results..."
-
-                    return redirect('polls:results', pk=choice.question.id)
-
-                else:
-                    verification_result = "Invalid form data."
+                            verification_result = "Verification successful."
+                            return HttpResponseRedirect(reverse('polls:results', args=(choice.question.id,)))
+                        else:
+                            verification_result = "Verification successful, nothing to update."
+                    else:
+                        verification_result = "Verification failed. Invalid response content."
+                except requests.exceptions.RequestException:
+                    verification_result = "Verification failed. Could not reach the URL."
+        else:
+            if request.POST.get('verify_url', '').strip():
+                verification_result = "Invalid URL. Please enter a valid URL."
     else:
         form = VerifyForm()
 
-    return render(request, 'polls/verify_vote.html', {
+    print(f"DEBUG: Final verification_result = '{verification_result}'")
+    return render(request,'polls/verify_vote.html', {
         'form': form,
         'verification_result': verification_result,
         'choice': choice,
+        'choice_id': choice_id,
         'voter_name_hashed': voter_name_hashed,
     })
