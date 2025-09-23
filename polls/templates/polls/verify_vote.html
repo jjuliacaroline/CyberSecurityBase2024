@@ -1,7 +1,9 @@
 <h2>Verify Your Vote</h2>
 <form method="post">
     {% csrf_token %}
-    <input type="hidden" name="choice_id" value="{% if choice_id %}{{ choice_id }}{% endif %}">
+    <input type="hidden" name="choice_id" value="{{ choice_id }}">
+    <input type="hidden" name="voter_name" value="{{ voter_name_hashed }}">
+
     <label for="id_verify_url">Add URL to verify:</label>
     <input type="text" name="verify_url" id="id_verify_url" required>
     <button type="submit">Verify Vote</button>
