@@ -81,9 +81,8 @@ def vote(request, question_id):
                 'error_message': "You didn't select a choice.",
             })
         else:
-            selected_choice.votes += 1
             selected_choice.save()
-            return HttpResponseRedirect(reverse('polls:verify-voter') + f"?choice_id={selected_choice.id}&voter_name={voter_name_hashed}")
+            return HttpResponseRedirect(reverse('polls:verify_voter') + f"?choice_id={selected_choice.id}&voter_name={voter_name_hashed}")
 
     return render(request, 'polls/detail.html', {
         'question': question
