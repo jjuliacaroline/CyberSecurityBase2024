@@ -70,9 +70,9 @@ def vote(request, question_id):
         try:
             selected_choice = question.choice_set.get(pk=request.POST['choice'])
             voter_name = request.POST.get('voter_name', 'anonymous')
-            #A02:2021 - Cryptographic Failures - weak algorithm
+            #FLAW-3 A02:2021 - Cryptographic Failures - weak algorithm
             voter_name_hashed = hashlib.md5(voter_name.encode()).hexdigest()
-            #Fix A02: 
+            #FLAW-3 Fix A02:2021 - Cryptographic Failures - strong algorithm
             #voter_name_hashed = hashlib.sha256(voter_name.encode()).hexdigest()
             selected_choice.voter_name_hashed = voter_name_hashed
         except (KeyError, Choice.DoesNotExist):

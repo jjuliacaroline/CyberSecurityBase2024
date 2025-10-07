@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/5.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.0/ref/settings/
 """
-
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -19,15 +19,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
-# A05:2021 – Security Misconfiguration
+# FLAW-5 A05:2021 – Security Misconfiguration
 SECRET_KEY = '12345'
 DEBUG = True
 ALLOWED_HOSTS = ["*"]
-# Fix A05:2021
-# import os
-# SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'backup_secure_key')
-# DEBUG = True
-# ALLOWED_HOSTS = ["trusteddomain.com", "trusteddomain2.com"]
+
+# FLAW-5 A05:2021 – Security Misconfiguration - FIX
+#SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'backup_secure_key')
+#DEBUG = False
+#ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 
 # Application definition
 
